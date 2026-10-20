@@ -178,6 +178,11 @@ Verified:
 Not verified: any real GPU (correctness or speed). SwiftShader timings are CPU emulation and say
 nothing about GPU performance.
 
+## Deployment status
+- `main` = M1–M7 (merges of PRs #1, #2, #3). Deployed; verified live with `scripts/verify-live.mjs`
+  plus a real 1920×1080 export from the live site (PNG decoded, tEXt present).
+- M8 is in https://github.com/fcadusims-droid/KESTLER-FRAC-LAB/pull/4 (pushed after #3 merged).
+
 ## Next
 All milestones done. Possible follow-ups: deep zoom (perturbation), histogram coloring, orbit
 traps, distance estimation, supersampling, float-float GPU arithmetic, off-main-thread DEFLATE.

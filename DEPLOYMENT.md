@@ -22,6 +22,9 @@ Live site: **https://fcadusims-droid.github.io/KESTLER-FRAC-LAB/**
 - After the second deploy, `scripts/verify-live.mjs` loaded the live URL in headless Chromium:
   HTTP 200, three render workers loaded from `/KESTLER-FRAC-LAB/assets/`, a non-blank canvas,
   wheel zoom changed the image, and there were no console errors.
+- The merge of https://github.com/fcadusims-droid/KESTLER-FRAC-LAB/pull/3 (M5–M7) also deployed.
+  The same check passed against it. A 1920×1080 export from the live site downloaded a PNG that
+  decoded correctly, with the embedded `FractalLab` tEXt chunk.
 - Later merges deploy the same way. Re-run `node scripts/verify-live.mjs <url>` to check a
   deployment.
 
