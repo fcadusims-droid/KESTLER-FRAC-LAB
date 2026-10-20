@@ -9,6 +9,7 @@ import { defaultState, fractalParams, stateZoom, type FractalState } from '../pr
 import { FractalCanvas } from './FractalCanvas.tsx';
 import { InfoOverlay } from './InfoOverlay.tsx';
 import { FormulaPanel } from './panels/FormulaPanel.tsx';
+import { ColorPanel } from './panels/ColorPanel.tsx';
 import type { ViewerStats } from './viewer.ts';
 
 function initialState(): { state: FractalState; error: string | null } {
@@ -87,6 +88,7 @@ export function App() {
           </div>
         )}
         <FormulaPanel state={state} resolvedIter={resolvedIter} onChange={patch} onFormula={setFormula} onResetView={resetView} />
+        <ColorPanel palette={state.palette} color={state.color} onPalette={(palette) => patch({ palette })} onColor={(color) => patch({ color })} />
       </aside>
       <main className="workspace">
         <FractalCanvas pool={pool} view={state.view} paramsFor={paramsFor} lut={lut} onViewChange={setView} onStats={setStats} onReset={resetView} />

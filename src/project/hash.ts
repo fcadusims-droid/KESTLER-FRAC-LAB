@@ -1,4 +1,5 @@
 import { defaultState, type FractalState } from './state.ts';
+import { findBuiltinPalette } from '../core/color/palettes.ts';
 import { fractalState, ValidationError } from './validate.ts';
 
 /**
@@ -53,6 +54,9 @@ export function decodeHash(hash: string): FractalState | null {
   };
   const it = p.get('it');
   const stops = p.get('st');
+  const palName = p.get('pal') ?? base.palette.name;
+  // A built-in palette may be referenced by name alone.
+  const fallbackStops = (findBuiltinPalette(palName) ?? base.palette).stops;
   const candidate = {
     formula,
     julia: { re: n('jr', base.julia.re), im: n('ji', base.julia.im) },
@@ -60,13 +64,13 @@ export function decodeHash(hash: string): FractalState | null {
     iterations: it === null || it === 'auto' ? { mode: 'auto' } : { mode: 'fixed', value: n('it', 0) },
     escapeRadius: n('r', base.escapeRadius),
     palette: {
-      name: p.get('pal') ?? base.palette.name,
+      name: palName,
       stops: stops
         ? stops.split(',').map((part) => {
             const [pos, color] = part.split(':');
             return { pos: Number(pos), color: `#${color ?? ''}` };
           })
-        : base.palette.stops,
+        : fallbackStops.map((st) => ({ ...st })),
     },
     color: {
       offset: n('off', base.color.offset),

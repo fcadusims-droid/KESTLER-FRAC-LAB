@@ -31,3 +31,11 @@ describe('URL hash state', () => {
     expect(() => decodeHash('#f=mandelbrot&w=0')).toThrow(/width/);
   });
 });
+
+describe('URL hash palettes', () => {
+  it('a built-in palette name without stops uses that palette', () => {
+    const s = decodeHash('#f=mandelbrot&pal=Aurora')!;
+    expect(s.palette.name).toBe('Aurora');
+    expect(s.palette.stops[0].color).toBe('#020b1a');
+  });
+});

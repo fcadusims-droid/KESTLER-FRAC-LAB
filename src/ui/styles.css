@@ -271,3 +271,56 @@ button.primary {
     right: 6px;
   }
 }
+
+.gradient-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gradient-bar {
+  position: relative;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  margin: 4px 7px 10px;
+}
+
+.stop-marker {
+  position: absolute;
+  bottom: -9px;
+  width: 14px;
+  height: 20px;
+  margin-left: -7px;
+  padding: 0;
+  border: 2px solid #fff;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px #000;
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.stop-marker.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+  z-index: 1;
+}
+
+.stop-controls {
+  align-items: center;
+}
+
+input[type='color'] {
+  width: 38px;
+  height: 30px;
+  padding: 2px;
+}
+
+.hex-input {
+  width: 90px;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+}
+
+.pos-input {
+  width: 72px;
+}

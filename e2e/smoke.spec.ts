@@ -73,3 +73,47 @@ test('a shared link restores the view', async ({ page }) => {
   await expect(page.getByLabel('Formula')).toHaveValue('julia');
   expect((await canvasFingerprint(page)).colors).toBeGreaterThan(20);
 });
+
+test('changing the palette recolors instantly without recomputing', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('./');
+  await waitForRender(page);
+  const status = await page.getByTestId('render-status').textContent();
+  const before = await canvasFingerprint(page);
+
+  await page.getByLabel('Palette', { exact: true }).selectOption({ label: 'Ember' });
+  await expect.poll(async () => (await canvasFingerprint(page)).hash).not.toBe(before.hash);
+  // The render status (time of the last full render) is unchanged: no new render ran.
+  await page.waitForTimeout(400);
+  await expect(page.getByTestId('render-status')).toHaveText(status!);
+
+  await page.getByLabel('Hue shift (°)', { exact: true }).fill('90');
+  await page.getByLabel('Invert colors').check();
+  await expect(page.getByTestId('render-status')).toHaveText(status!);
+  expect(errors).toEqual([]);
+});
+
+test('keyboard zoom and reset', async ({ page }) => {
+  await page.goto('./');
+  await waitForRender(page);
+  await page.getByTestId('fractal-canvas').focus();
+  await page.keyboard.press('+');
+  await expect(page.getByTestId('zoom')).toHaveText('1.5×');
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('r');
+  await expect(page.getByTestId('zoom')).toHaveText('1×');
+});
+
+test('gradient editor: add, edit and remove stops', async ({ page }) => {
+  await page.goto('./');
+  await waitForRender(page);
+  const markers = page.locator('.stop-marker');
+  const n = await markers.count();
+  await page.getByRole('button', { name: 'Add stop' }).click();
+  await expect(markers).toHaveCount(n + 1);
+  await page.getByLabel('Selected stop hex color').fill('#ff0000');
+  await expect(page.getByLabel('Palette', { exact: true })).toHaveValue('-1');
+  await expect.poll(() => page.evaluate(() => location.hash)).toContain('ff0000');
+  await page.getByRole('button', { name: 'Remove stop' }).click();
+  await expect(markers).toHaveCount(n);
+});

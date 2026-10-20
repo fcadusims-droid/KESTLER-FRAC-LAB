@@ -57,8 +57,30 @@ Verified:
 
 Not verified: pinch zoom on a real touch device; keyboard shortcuts (no automated test yet).
 
+## Milestone 4 — Coloring ✅ (MVP)
+Done:
+- 8 built-in palettes (Deep Ocean, Electric, Ember, Monochrome, Aurora, Gold, Ultraviolet, Spectrum).
+- Gradient editor: draggable stops (pointer + arrow keys), add/remove, hex input, color picker,
+  numeric position. Cyclic gradient.
+- Offset, cycle length (number + log slider), gamma, brightness, contrast, hue shift,
+  saturation, invert, interior color. All baked into a 2048-entry LUT.
+- Instant recolor: the viewer keeps the Float32 smooth-value buffer and recolors it (plus any
+  finished tiles of an in-progress render) without recomputing.
+- Fixed: a link with `pal=<builtin>` but no `st` now uses that palette's colors.
+
+Verified:
+- Unit: 54 tests pass (adds gradient sampling/wrap, adjustments, colorize, palette-by-name).
+- Playwright: 6 tests pass, incl. palette change alters pixels while the render status (last
+  full render time) stays unchanged → no recompute; keyboard +/R; gradient add/edit/remove.
+- Screenshot inspected (Julia −0.8+0.156i with the color panel).
+
+Deployment: PR https://github.com/fcadusims-droid/KESTLER-FRAC-LAB/pull/1 (M1 only) was merged
+by the owner; the Deploy workflow succeeded and `https://fcadusims-droid.github.io/KESTLER-FRAC-LAB/`
+returned HTTP 200 with `/KESTLER-FRAC-LAB/`-prefixed assets (fetched with curl). M2–M4 are in
+PR https://github.com/fcadusims-droid/KESTLER-FRAC-LAB/pull/2 and are not deployed until it merges.
+
 ## Next
-Milestone 4 — coloring UI (palette picker, gradient editor, adjustments) → MVP.
+Milestone 5 — banded streaming PNG export.
 
 ## Known issues
 - None yet.
