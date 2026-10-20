@@ -47,12 +47,16 @@ export class PngStreamEncoder {
   private finished = false;
   bytesOut = 0;
 
-  constructor(
-    readonly width: number,
-    readonly height: number,
-    private readonly emit: (bytes: Uint8Array) => void,
-    opts: PngEncoderOptions = {},
-  ) {
+  readonly width: number;
+  readonly height: number;
+  private readonly emit: (bytes: Uint8Array) => void;
+
+  // Explicit fields instead of parameter properties so this module also runs under
+  // Node's type stripping (used by the headless experiment harness).
+  constructor(width: number, height: number, emit: (bytes: Uint8Array) => void, opts: PngEncoderOptions = {}) {
+    this.width = width;
+    this.height = height;
+    this.emit = emit;
     if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1 || width > 2 ** 31 - 1 || height > 2 ** 31 - 1) {
       throw new Error(`Invalid PNG size ${width}×${height}`);
     }

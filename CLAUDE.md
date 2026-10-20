@@ -20,6 +20,10 @@ Locally, if Playwright's bundled Chromium is missing, run e2e with
 - `src/export/` — streaming PNG encoder, sinks, banded exporter.
 - `src/project/` — project JSON schema/validation, URL hash, localStorage.
 - `src/ui/` — React components.
+- `src/studio/` — Fractal Image Studio (experimental). `analysis/` is the ONLY code that reads
+  source pixels; it emits `RegionDescriptor`s. `render.ts`/`colormap.ts`/`match.ts`/`library/`
+  must never import `analysis/`, `synthetic.ts` or take an image buffer (a test enforces this).
+  Studio modules avoid TS parameter properties so they run under `node --experimental-strip-types`.
 
 ## Hard constraints
 - Static site on GitHub Pages at `/REPO/` (or `/`). No backend, paid services, external APIs, Electron.

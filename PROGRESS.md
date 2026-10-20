@@ -189,3 +189,37 @@ traps, distance estimation, supersampling, float-float GPU arithmetic, off-main-
 
 ## Known issues
 - None yet.
+
+---
+
+# Fractal Image Studio (experimental feature)
+
+Goal: from a reference image, render an image that reads as the subject from a distance and
+is made of calculated Mandelbrot/Julia structure up close. Mandatory checkpoint after S3.
+
+## S1 — Core and analysis ✅
+Done (`src/studio/`):
+- `oklab.ts` (sRGB↔OKLab, chroma-reducing gamut mapping), `prng.ts` (mulberry32, seed hashing).
+- `analysis/analyze.ts` — the only reader of source pixels. Alpha composited over the chosen
+  background in linear light; OKLab; per-channel Sobel; per-region descriptor: bounds, mean,
+  ≤2 k-means colors (OKLab, k=2, darker first) + proportions, L mean/variance, edge strength
+  (ΔE_OK per output px), gradient direction (of the projection onto the colors[0]→colors[1]
+  axis, so equal-luminance color edges count), coverage. Values quantized (1e-4 etc.).
+- `partition.ts` — fixed grid; quadtree driven only by a `describe(rect)` callback from the
+  analysis module (never pixels); exact-coverage checker `regionIdMap`.
+- `library/` — seeded library: 96 base patches (half Mandelbrot near the boundary, half Julia
+  with c near the Mandelbrot boundary) × 4 exact 90° rotations = 384 candidates. s =
+  log(1+smooth escape) normalized by the proxy's 2nd/98th percentiles, interior = 1. Stats on a
+  40×40 proxy: mean/std s, interior fraction, density (|s − box3 s|), structure-tensor
+  orientation + coherence, median split fraction/direction/strength. Flat rejection includes a
+  raw-range test (normalization would otherwise inflate near-constant fields).
+- `match.ts`, `colormap.ts`, `render.ts`, `settings.ts` (Fidelity/Detail → parameters),
+  `synthetic.ts` (apple, transparent apple, star + checker), `src/export/encodeImage.ts`.
+- Minimal refactor: `PngStreamEncoder` no longer uses TS parameter properties, so the export
+  code runs under `node --experimental-strip-types`.
+
+Verified: 28 studio unit tests (analysis on hand-built images incl. a 50/50 red/blue cell and
+transparency, partition coverage/min/max, library determinism + flat rejection, information
+boundary: identical descriptors from different images → identical bytes, render module has no
+source access, tiled = untiled for all seam modes, no flat regions, region mean ΔE < 0.05,
+matching determinism). Smoke render of the apple at 16 px grid inspected visually.
