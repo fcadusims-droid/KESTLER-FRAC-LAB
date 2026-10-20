@@ -89,6 +89,7 @@ export function App() {
         <header className="brand">
           <h1>Fractal Lab</h1>
           <p>Computed in your browser · {pool.size} worker{pool.size === 1 ? '' : 's'}</p>
+          <p className="hint">Drag to pan · scroll, pinch or double-click to zoom · arrows / + / − / R on the canvas</p>
         </header>
         {notice && (
           <div className="notice" role="alert">

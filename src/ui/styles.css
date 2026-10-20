@@ -270,6 +270,11 @@ button.primary {
     top: 6px;
     right: 6px;
   }
+
+  /* Keep more of the image visible on small screens. */
+  .overlay .secondary {
+    display: none;
+  }
 }
 
 .gradient-editor {

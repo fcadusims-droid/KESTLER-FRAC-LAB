@@ -141,8 +141,22 @@ Verified:
   reload; re-opening an exported PNG restores its project).
 - Screenshots of Burning Ship inspected (upright after the change).
 
+## Milestone 7 — Hardening ✅
+Done:
+- Playwright smoke tests run in CI (`ci.yml`), 13 tests.
+- Performance: `scripts/bench.ts` (1 thread, core) and `scripts/bench-browser.mjs` (app, full
+  render with workers); results in README. Split the Burning Ship loop out of the shared loop
+  (~25% faster for it); a per-formula tile loop was tried and dropped (no measurable gain).
+- UI: removed `aria-live` from the constantly-updating overlay (would flood screen readers);
+  precision warning keeps `role=alert`; control help line; compact overlay on narrow screens;
+  mobile layout checked by screenshot (Pixel 7 emulation).
+- README.md and DEPLOYMENT.md complete.
+
+Verified: 89 unit + 13 Playwright tests pass; lint/typecheck/build pass; benchmark numbers
+in README measured in this container (headless Chromium 141, 4 vCPU).
+
 ## Next
-Milestone 7 — hardening: performance measurements, UI polish/accessibility, README/DEPLOYMENT.
+Milestone 8 (optional) — WebGPU float32 preview backend with fallback. Not started.
 
 ## Known issues
 - None yet.

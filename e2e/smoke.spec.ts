@@ -117,3 +117,12 @@ test('gradient editor: add, edit and remove stops', async ({ page }) => {
   await page.getByRole('button', { name: 'Remove stop' }).click();
   await expect(markers).toHaveCount(n);
 });
+
+test('shows the double-precision warning only past the float64 limit', async ({ page }) => {
+  await page.goto('./#f=mandelbrot&x=-0.743643887037151&y=0.13182590420533&s=1e-9&it=500');
+  await waitForRender(page);
+  await expect(page.getByTestId('precision-warning')).toHaveCount(0);
+  await page.goto('./#f=mandelbrot&x=-0.743643887037151&y=0.13182590420533&s=1e-13&it=500');
+  await expect(page.getByTestId('precision-warning')).toContainText('limit of double precision');
+  await expect(page.getByTestId('backend')).toContainText('CPU float64');
+});

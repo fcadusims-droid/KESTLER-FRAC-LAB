@@ -39,7 +39,7 @@ const result = {
   url,
   httpStatus: resp?.status(),
   renderStatus: await page.getByTestId('render-status').textContent(),
-  backend: await page.locator('.overlay-grid code').nth(4).textContent(),
+  backend: await page.getByTestId('backend').textContent(),
   workers,
   distinctColorsSampled: before.colors,
   zoomChangedImage: before.hash !== after.hash,
