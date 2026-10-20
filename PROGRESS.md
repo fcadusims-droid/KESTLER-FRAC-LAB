@@ -155,8 +155,32 @@ Done:
 Verified: 89 unit + 13 Playwright tests pass; lint/typecheck/build pass; benchmark numbers
 in README measured in this container (headless Chromium 141, 4 vCPU).
 
+## Milestone 8 — WebGPU float32 preview backend ✅ (correctness verified on a software adapter only)
+Done:
+- `src/render/gpu/shader.wgsl.ts`: WGSL compute shader with the same semantics as the CPU core
+  (escape check, smooth value, INTERIOR, cardioid/bulb, exact periodicity, mirrored Burning Ship).
+- `src/render/gpu/webgpu.ts`: feature detection (`navigator.gpu` → adapter → device → shader
+  compile check), chunked dispatches (≤256k px each) with stale-id cancellation between chunks,
+  readback into the same Float32 smooth-value buffer the CPU path produces; device-loss handling.
+- `src/core/float32.ts`: float32 usable while pixel / |coordinate| ≥ 2e-5.
+- Viewer chooses the backend from the full-res frame; falls back to CPU float64 when too deep,
+  device lost, or canvas exceeds `maxStorageBufferBindingSize`; overlay shows the active backend
+  and the fallback reason. Checkbox to disable; `?gpu=0` URL switch. Exports always CPU float64.
+
+Verified:
+- Unit: 90 tests (adds float32 limit).
+- Playwright project `chromium-webgpu` (`--enable-unsafe-webgpu`, adapter "google swiftshader"):
+  GPU image vs CPU image differ visibly (ΣΔRGB > 24) in 2.6–3.1% of pixels at 130× zoom, all in
+  boundary dust; 0.14% at the default Mandelbrot view, 0.33% for Julia −0.8+0.156i (measured by
+  a one-off script). Deep zoom switches to "CPU float64 (zoom too deep for float32)" and back.
+  The test skips with a reason if no adapter exists (possible on CI runners).
+
+Not verified: any real GPU (correctness or speed). SwiftShader timings are CPU emulation and say
+nothing about GPU performance.
+
 ## Next
-Milestone 8 (optional) — WebGPU float32 preview backend with fallback. Not started.
+All milestones done. Possible follow-ups: deep zoom (perturbation), histogram coloring, orbit
+traps, distance estimation, supersampling, float-float GPU arithmetic, off-main-thread DEFLATE.
 
 ## Known issues
 - None yet.

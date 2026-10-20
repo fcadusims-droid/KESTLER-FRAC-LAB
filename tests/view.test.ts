@@ -170,3 +170,16 @@ describe('precision diagnostic', () => {
     expect(pixelToComplex(f, 0, 0)[0]).toBe(pixelToComplex(f, 1, 0)[0]);
   });
 });
+
+describe('float32 limit', () => {
+  it('hands over to float64 well before float32 pixels collapse', async () => {
+    const { isFloat32Usable } = await import('../src/core/float32.ts');
+    expect(isFloat32Usable({ cx: -0.6, cy: 0, scale: 2.6 / 800 })).toBe(true);
+    expect(isFloat32Usable({ cx: -0.745, cy: 0.11, scale: 0.02 / 800 })).toBe(true);
+    expect(isFloat32Usable({ cx: -0.745, cy: 0.11, scale: 1e-6 / 800 })).toBe(false);
+    // At the limit a pixel still spans > 100 float32 ulps of the coordinate.
+    const cx = 1.5;
+    const scale = cx * 2e-5;
+    expect(Math.fround(cx + scale) - Math.fround(cx)).toBeGreaterThan(100 * 2 ** -23);
+  });
+});

@@ -4,6 +4,8 @@ import { frameFromView, pan, screenToComplex, viewFromFrame, zoomAt } from '../c
 import { colorize, type ColorLut } from '../core/color/index.ts';
 import type { WorkerPool } from '../render/pool.ts';
 import { RenderScheduler } from '../render/scheduler.ts';
+import type { WebGpuRenderer } from '../render/gpu/webgpu.ts';
+import { isFloat32Usable } from '../core/float32.ts';
 
 export interface ViewerStats {
   phase: 'preview' | 'rendering' | 'done';
@@ -12,6 +14,8 @@ export interface ViewerStats {
   width: number;
   height: number;
   maxIter: number;
+  /** Human-readable active backend, e.g. "CPU float64 · 3 workers" or "WebGPU float32". */
+  backend: string;
 }
 
 export interface ViewerCallbacks {
@@ -45,6 +49,8 @@ const PREVIEW_PIXELS = 120_000;
 export class Viewer {
   private readonly ctx: CanvasRenderingContext2D;
   private readonly scheduler: RenderScheduler;
+  private gpu: WebGpuRenderer | null = null;
+  private useGpu = false;
   private frame: Frame;
   private view: View;
   private lut: ColorLut | null = null;
@@ -62,7 +68,7 @@ export class Viewer {
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
-    pool: WorkerPool,
+    private readonly pool: WorkerPool,
     private readonly cb: ViewerCallbacks,
     initialView: View,
   ) {
@@ -81,6 +87,7 @@ export class Viewer {
     this.abort.abort();
     clearTimeout(this.settleTimer);
     this.scheduler.cancel();
+    this.gpu?.cancel();
   }
 
   /** Current frame in device pixels. */
@@ -99,6 +106,34 @@ export class Viewer {
     this.paramsFor = fn;
     // The old base image stays on screen (reprojected) until the new preview arrives.
     this.requestRender('immediate');
+  }
+
+  /** Enables the float32 WebGPU backend for the interactive view (exports always use CPU float64). */
+  setGpu(gpu: WebGpuRenderer | null, enabled: boolean): void {
+    if (gpu === this.gpu && enabled === this.useGpu) return;
+    this.gpu?.cancel();
+    this.gpu = gpu;
+    this.useGpu = enabled;
+    this.requestRender('immediate');
+  }
+
+  /** The backend is chosen from the full-resolution frame so preview and final pass agree. */
+  private backend(): { gpu: boolean; label: string } {
+    const cpu = `CPU float64 · ${this.pool.size} worker${this.pool.size === 1 ? '' : 's'}`;
+    if (!this.gpu || !this.useGpu) return { gpu: false, label: cpu };
+    if (this.gpu.lost) return { gpu: false, label: `${cpu} (GPU device lost)` };
+    if (!isFloat32Usable(this.frame)) return { gpu: false, label: `${cpu} (zoom too deep for float32)` };
+    if (!this.gpu.canRender(this.frame)) return { gpu: false, label: `${cpu} (canvas too large for GPU buffer)` };
+    return { gpu: true, label: `WebGPU float32 · ${this.gpu.adapterName}` };
+  }
+
+  private compute(frame: Frame, params: FractalParams, gpu: boolean, opts: { tileSize?: number; onTile?: (rect: Rect, values: Float32Array) => void } = {}) {
+    if (gpu) {
+      this.scheduler.cancel();
+      return this.gpu!.render(frame, params);
+    }
+    this.gpu?.cancel();
+    return this.scheduler.render(frame, params, opts);
   }
 
   setLut(lut: ColorLut): void {
@@ -171,12 +206,12 @@ export class Viewer {
     this.previewDirty = false;
     this.afterPreview = then ?? null;
     const frame = this.previewFrame();
-    this.emitStats('preview', params.maxIter);
-    this.scheduler
-      .render(frame, params, { tileSize: 64 })
+    const backend = this.backend();
+    this.emitStats('preview', params.maxIter, backend.label);
+    this.compute(frame, params, backend.gpu, { tileSize: 64 })
       .then((res) => {
         if (res) {
-          this.base = this.makeBase(res.frame, res.values);
+          this.base = this.makeBase(frame, res.values);
           if (!this.progress) this.drawBase();
         }
       })
@@ -199,9 +234,9 @@ export class Viewer {
     const frame = this.frame;
     const progress: Progress = { frame, values: new Float32Array(frame.width * frame.height), done: [] };
     this.progress = progress;
-    this.emitStats('rendering', params.maxIter);
-    this.scheduler
-      .render(frame, params, {
+    const backend = this.backend();
+    this.emitStats('rendering', params.maxIter, backend.label);
+    this.compute(frame, params, backend.gpu, {
         onTile: (rect, values) => {
           if (this.progress !== progress) return;
           for (let r = 0; r < rect.h; r++) progress.values.set(values.subarray(r * rect.w, (r + 1) * rect.w), (rect.y + r) * frame.width + rect.x);
@@ -213,12 +248,18 @@ export class Viewer {
         if (!res || this.progress !== progress) return;
         this.progress = null;
         this.renderMs = res.ms;
-        const image = document.createElement('canvas');
-        image.width = frame.width;
-        image.height = frame.height;
-        image.getContext('2d')!.drawImage(this.canvas, 0, 0);
-        this.base = { frame, values: res.values, image };
-        this.emitStats('done', params.maxIter);
+        if (backend.gpu) {
+          // The GPU path delivers the whole frame at once.
+          this.base = this.makeBase(frame, res.values);
+          this.drawBase();
+        } else {
+          const image = document.createElement('canvas');
+          image.width = frame.width;
+          image.height = frame.height;
+          image.getContext('2d')!.drawImage(this.canvas, 0, 0);
+          this.base = { frame, values: res.values, image };
+        }
+        this.emitStats('done', params.maxIter, backend.label);
       })
       .catch((err) => console.error('Render failed', err));
   }
@@ -265,8 +306,8 @@ export class Viewer {
     this.ctx.putImageData(img, rect.x, rect.y);
   }
 
-  private emitStats(phase: ViewerStats['phase'], maxIter: number): void {
-    this.cb.onStats({ phase, renderMs: this.renderMs, width: this.frame.width, height: this.frame.height, maxIter });
+  private emitStats(phase: ViewerStats['phase'], maxIter: number, backend: string): void {
+    this.cb.onStats({ phase, renderMs: this.renderMs, width: this.frame.width, height: this.frame.height, maxIter, backend });
   }
 
   // ---- input ------------------------------------------------------------------

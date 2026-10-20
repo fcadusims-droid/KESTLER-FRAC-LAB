@@ -17,10 +17,23 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
+      testIgnore: /webgpu\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],
         // Allows using a preinstalled Chromium when the bundled one is unavailable.
         launchOptions: process.env.PW_CHROMIUM_PATH ? { executablePath: process.env.PW_CHROMIUM_PATH } : {},
+      },
+    },
+    {
+      // WebGPU through Chromium's software adapter (SwiftShader) when no GPU is present.
+      name: 'chromium-webgpu',
+      testMatch: /webgpu\.spec\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+        launchOptions: {
+          args: ['--enable-unsafe-webgpu'],
+          ...(process.env.PW_CHROMIUM_PATH ? { executablePath: process.env.PW_CHROMIUM_PATH } : {}),
+        },
       },
     },
   ],

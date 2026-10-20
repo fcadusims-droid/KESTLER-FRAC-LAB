@@ -419,3 +419,10 @@ input[type='color'] {
   flex: 1;
   min-width: 0;
 }
+
+.render-options {
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
