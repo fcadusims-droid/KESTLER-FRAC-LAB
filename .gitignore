@@ -7,3 +7,7 @@ playwright-report/
 *.tsbuildinfo
 .DS_Store
 *.tmp.mjs
+# Fractal Image Studio experiment outputs (only the final sheet and report are kept)
+artifacts/fractal-image-studio/*
+!artifacts/fractal-image-studio/EXPERIMENT_REPORT.md
+!artifacts/fractal-image-studio/final-comparison.png

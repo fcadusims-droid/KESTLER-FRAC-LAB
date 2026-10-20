@@ -189,3 +189,82 @@ traps, distance estimation, supersampling, float-float GPU arithmetic, off-main-
 
 ## Known issues
 - None yet.
+
+---
+
+# Fractal Image Studio (experimental feature)
+
+Goal: from a reference image, render an image that reads as the subject from a distance and
+is made of calculated Mandelbrot/Julia structure up close. Mandatory checkpoint after S3.
+
+## S1 — Core and analysis ✅
+Done (`src/studio/`):
+- `oklab.ts` (sRGB↔OKLab, chroma-reducing gamut mapping), `prng.ts` (mulberry32, seed hashing).
+- `analysis/analyze.ts` — the only reader of source pixels. Alpha composited over the chosen
+  background in linear light; OKLab; per-channel Sobel; per-region descriptor: bounds, mean,
+  ≤2 k-means colors (OKLab, k=2, darker first) + proportions, L mean/variance, edge strength
+  (ΔE_OK per output px), gradient direction (of the projection onto the colors[0]→colors[1]
+  axis, so equal-luminance color edges count), coverage. Values quantized (1e-4 etc.).
+- `partition.ts` — fixed grid; quadtree driven only by a `describe(rect)` callback from the
+  analysis module (never pixels); exact-coverage checker `regionIdMap`.
+- `library/` — seeded library: 96 base patches (half Mandelbrot near the boundary, half Julia
+  with c near the Mandelbrot boundary) × 4 exact 90° rotations = 384 candidates. s =
+  log(1+smooth escape) normalized by the proxy's 2nd/98th percentiles, interior = 1. Stats on a
+  40×40 proxy: mean/std s, interior fraction, density (|s − box3 s|), structure-tensor
+  orientation + coherence, median split fraction/direction/strength. Flat rejection includes a
+  raw-range test (normalization would otherwise inflate near-constant fields).
+- `match.ts`, `colormap.ts`, `render.ts`, `settings.ts` (Fidelity/Detail → parameters),
+  `synthetic.ts` (apple, transparent apple, star + checker), `src/export/encodeImage.ts`.
+- Minimal refactor: `PngStreamEncoder` no longer uses TS parameter properties, so the export
+  code runs under `node --experimental-strip-types`.
+
+Verified: 28 studio unit tests (analysis on hand-built images incl. a 50/50 red/blue cell and
+transparency, partition coverage/min/max, library determinism + flat rejection, information
+boundary: identical descriptors from different images → identical bytes, render module has no
+source access, tiled = untiled for all seam modes, no flat regions, region mean ΔE < 0.05,
+matching determinism). Smoke render of the apple at 16 px grid inspected visually.
+
+## S2 — Fixed-grid mosaic, harness, metrics ✅
+Done:
+- `src/studio/metrics.ts`: OKLab conversion with the same alpha rule as analysis; exact
+  area-average downsampling; mean ΔE_OK; SSIM on L (7×7 Gaussian σ=1.5, C1=0.01², C2=0.03²);
+  detail (per-cell mean |L − box blur r≈cell/8|, % visible ≥ 0.01, % flat < 0.003); seam ratio
+  (mean neighbor ΔE across borders ÷ within cells).
+- `src/studio/sheet.ts`: comparison sheet (full / 64 px "distant" / 4× nearest crop) with a
+  built-in 5×7 bitmap font.
+- `scripts/experiment.ts` (`npm run experiment -- --run <id> --variants … --targets …`):
+  writes `<target>-target.png`, `<target>-<variant>.png` + JSON (settings, derived parameters,
+  seed, commit, metrics), `<target>-sheet.png`, `summary.json` to
+  `artifacts/fractal-image-studio/<run>/` (gitignored).
+
+Run r1-grid (768², seed 1, fixed grids, mean-color mapping only) — see EXPERIMENT_REPORT later.
+Observed (images inspected): grid16/32 read as apple/star from a distance; 48/64 become blobs.
+Edge cells average two colors into mud (e.g. grey-olive on the star edge). Transparent-apple
+background: 65 % near-flat cells (white has no headroom for lightness modulation).
+Metric caveats found: fidelity at one sample per cell is trivially ≈0 for a grid (cell means are
+matched by construction); SSIM at 128 px is not monotonic in cell size (texture leaks into it).
+
+Verified: 6 metric unit tests (SSIM identity/ordering, exact fractional box filter, ΔE, detail,
+seam ratio, alpha compositing); full suite, lint, typecheck, build pass.
+
+## S3 — Adaptive, two-color edges, seams, 4 improvement rounds ✅ → CHECKPOINT
+Done: two-color edge cells (rank(ramp along gradDir) + rank(s), threshold at the target area
+split), quadtree, seam modes hard/feather/grout, 4 bounded rounds (details and all metrics in
+`artifacts/fractal-image-studio/EXPERIMENT_REPORT.md`):
+1. in-cell lightness ramp — no effect, reverted;
+2. window span ∝ cell size (constant structure scale) — seams ↓, fidelity slightly ↓, kept;
+3. lightness headroom — removed flat cells but greyed white backgrounds;
+4. asymmetric modulation near white/black — kept; best fidelity of all runs, 0 % flat cells.
+Slider tests (`tests/studio/controls.test.ts`): Fidelity ↑ → amplitude ↓, λ ↑, w_split/w_orient
+↑, split thresholds ↓, more quadtree regions, ΔE ↓; Detail ↑ → amplitude ↑, density target ↑,
+min cell ↑, high-frequency energy ↑ (all verified).
+
+Best result: 16 px grid + two-color cells (ΔE₁₂₈ apple 0.0400, star 0.0453, transparent apple
+0.0368; seam 4.85–5.65). Adaptive: 2.5–3.4× fewer regions but worse fidelity/seams and
+triangular facets where smooth shading is misclassified as a two-color edge (open issue).
+
+Committed: `artifacts/fractal-image-studio/final-comparison.png` (818×1096) and the report;
+all run folders r1…r6 are local only (gitignored).
+
+**Next: waiting for the user's review before building the UI (S4).** Recommended first fix:
+distinguish gradients from edges before using two-color mode.
