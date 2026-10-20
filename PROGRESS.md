@@ -223,3 +223,26 @@ transparency, partition coverage/min/max, library determinism + flat rejection, 
 boundary: identical descriptors from different images → identical bytes, render module has no
 source access, tiled = untiled for all seam modes, no flat regions, region mean ΔE < 0.05,
 matching determinism). Smoke render of the apple at 16 px grid inspected visually.
+
+## S2 — Fixed-grid mosaic, harness, metrics ✅
+Done:
+- `src/studio/metrics.ts`: OKLab conversion with the same alpha rule as analysis; exact
+  area-average downsampling; mean ΔE_OK; SSIM on L (7×7 Gaussian σ=1.5, C1=0.01², C2=0.03²);
+  detail (per-cell mean |L − box blur r≈cell/8|, % visible ≥ 0.01, % flat < 0.003); seam ratio
+  (mean neighbor ΔE across borders ÷ within cells).
+- `src/studio/sheet.ts`: comparison sheet (full / 64 px "distant" / 4× nearest crop) with a
+  built-in 5×7 bitmap font.
+- `scripts/experiment.ts` (`npm run experiment -- --run <id> --variants … --targets …`):
+  writes `<target>-target.png`, `<target>-<variant>.png` + JSON (settings, derived parameters,
+  seed, commit, metrics), `<target>-sheet.png`, `summary.json` to
+  `artifacts/fractal-image-studio/<run>/` (gitignored).
+
+Run r1-grid (768², seed 1, fixed grids, mean-color mapping only) — see EXPERIMENT_REPORT later.
+Observed (images inspected): grid16/32 read as apple/star from a distance; 48/64 become blobs.
+Edge cells average two colors into mud (e.g. grey-olive on the star edge). Transparent-apple
+background: 65 % near-flat cells (white has no headroom for lightness modulation).
+Metric caveats found: fidelity at one sample per cell is trivially ≈0 for a grid (cell means are
+matched by construction); SSIM at 128 px is not monotonic in cell size (texture leaks into it).
+
+Verified: 6 metric unit tests (SSIM identity/ordering, exact fractional box filter, ΔE, detail,
+seam ratio, alpha compositing); full suite, lint, typecheck, build pass.
