@@ -26,6 +26,8 @@ const VARIANTS: Record<string, Partial<StudioSettings>> = {
   grid48: { partition: { kind: 'grid', cell: 48 }, twoColor: false },
   grid64: { partition: { kind: 'grid', cell: 64 }, twoColor: false },
   grid16two: { partition: { kind: 'grid', cell: 16 }, twoColor: true },
+  grid32two: { partition: { kind: 'grid', cell: 32 }, twoColor: true },
+  grid48two: { partition: { kind: 'grid', cell: 48 }, twoColor: true },
   adaptive: { partition: { kind: 'adaptive', maxCell: 48 }, twoColor: true },
   adaptiveFeather: { partition: { kind: 'adaptive', maxCell: 48 }, twoColor: true, seam: 'feather' },
   adaptiveGrout: { partition: { kind: 'adaptive', maxCell: 48 }, twoColor: true, seam: 'grout' },

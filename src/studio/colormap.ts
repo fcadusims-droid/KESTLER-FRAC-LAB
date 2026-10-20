@@ -61,6 +61,9 @@ export class RegionColorMap {
   private readonly sinD: number;
   private tau = 0.5;
   private offset: Lab = [0, 0, 0];
+  /** Lightness amplitude for z > 0 and z < 0 (asymmetric near the gamut ceiling/floor). */
+  private ampUp = 0;
+  private ampDown = 0;
 
   constructor(d: RegionDescriptor, s: Float32Array, dv: Derived, allowTwoColor: boolean) {
     this.d = d;
@@ -93,7 +96,15 @@ export class RegionColorMap {
       f.sort();
       this.tau = f[Math.min(f.length - 1, Math.max(0, Math.round((1 - c[1].weight) * (f.length - 1))))];
     }
-    // Shift so the displayed region mean matches the target mean (two passes).
+    // Near white (or black) a symmetric modulation would be clipped flat. The modulation is
+    // made asymmetric there — it only goes as far up/down as the room left (z ≤ 2.5) — and the
+    // target lightness keeps a small headroom, so texture survives with a near-extreme mean.
+    const amp = dv.amplitude * (this.twoColor ? 0.6 : 1);
+    const headroom = 0.45 * amp;
+    const targetL = Math.min(1 - headroom, Math.max(headroom, d.mean[0]));
+    this.ampUp = Math.min(amp, Math.max(0, (0.995 - targetL) / 2.5));
+    this.ampDown = Math.min(amp, Math.max(0, (targetL - 0.005) / 2.5));
+    // Shift so the displayed region mean matches the (headroom-limited) target mean (two passes).
     for (let pass = 0; pass < 2; pass++) {
       const acc: Lab = [0, 0, 0];
       for (let j = 0; j < h; j++) {
@@ -105,7 +116,7 @@ export class RegionColorMap {
         }
       }
       const n = w * h;
-      this.offset = [this.offset[0] + d.mean[0] - acc[0] / n, this.offset[1] + d.mean[1] - acc[1] / n, this.offset[2] + d.mean[2] - acc[2] / n];
+      this.offset = [this.offset[0] + targetL - acc[0] / n, this.offset[1] + d.mean[1] - acc[1] / n, this.offset[2] + d.mean[2] - acc[2] / n];
     }
   }
 
@@ -131,7 +142,7 @@ export class RegionColorMap {
     } else {
       base = [this.d.mean[0], this.d.mean[1], this.d.mean[2]];
     }
-    const L = base[0] + dv.amplitude * z * (this.twoColor ? 0.6 : 1);
+    const L = base[0] + (z > 0 ? this.ampUp : this.ampDown) * z;
     const k = 1 + dv.chromaMod * z;
     const ang = dv.hueMod * z;
     const ca = Math.cos(ang);

@@ -246,3 +246,25 @@ matched by construction); SSIM at 128 px is not monotonic in cell size (texture 
 
 Verified: 6 metric unit tests (SSIM identity/ordering, exact fractional box filter, ΔE, detail,
 seam ratio, alpha compositing); full suite, lint, typecheck, build pass.
+
+## S3 — Adaptive, two-color edges, seams, 4 improvement rounds ✅ → CHECKPOINT
+Done: two-color edge cells (rank(ramp along gradDir) + rank(s), threshold at the target area
+split), quadtree, seam modes hard/feather/grout, 4 bounded rounds (details and all metrics in
+`artifacts/fractal-image-studio/EXPERIMENT_REPORT.md`):
+1. in-cell lightness ramp — no effect, reverted;
+2. window span ∝ cell size (constant structure scale) — seams ↓, fidelity slightly ↓, kept;
+3. lightness headroom — removed flat cells but greyed white backgrounds;
+4. asymmetric modulation near white/black — kept; best fidelity of all runs, 0 % flat cells.
+Slider tests (`tests/studio/controls.test.ts`): Fidelity ↑ → amplitude ↓, λ ↑, w_split/w_orient
+↑, split thresholds ↓, more quadtree regions, ΔE ↓; Detail ↑ → amplitude ↑, density target ↑,
+min cell ↑, high-frequency energy ↑ (all verified).
+
+Best result: 16 px grid + two-color cells (ΔE₁₂₈ apple 0.0400, star 0.0453, transparent apple
+0.0368; seam 4.85–5.65). Adaptive: 2.5–3.4× fewer regions but worse fidelity/seams and
+triangular facets where smooth shading is misclassified as a two-color edge (open issue).
+
+Committed: `artifacts/fractal-image-studio/final-comparison.png` (818×1096) and the report;
+all run folders r1…r6 are local only (gitignored).
+
+**Next: waiting for the user's review before building the UI (S4).** Recommended first fix:
+distinguish gradients from edges before using two-color mode.

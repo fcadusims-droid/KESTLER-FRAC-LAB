@@ -23,6 +23,12 @@ export interface RenderResult {
   ms: number;
 }
 
+/**
+ * Cell size (px) at which a patch shows its library window. Larger cells show a proportionally
+ * larger window, so fractal structure has the same pixel scale in every cell size.
+ */
+export const STRUCTURE_REF_PX = 16;
+
 interface Prepared {
   s: Float32Array;
   map: RegionColorMap;
@@ -54,7 +60,9 @@ export class StudioRenderer {
     let p = this.cache.get(id);
     if (!p) {
       const d = this.descriptors[id];
-      const field = renderField(this.lib.candidates[this.selection[id]].patch, d.rect.w, d.rect.h);
+      const patch = this.lib.candidates[this.selection[id]].patch;
+      const scaled = { ...patch, span: (patch.span * Math.max(d.rect.w, d.rect.h)) / STRUCTURE_REF_PX };
+      const field = renderField(scaled, d.rect.w, d.rect.h);
       this.iterations += field.iterations;
       p = { s: field.s, map: new RegionColorMap(d, field.s, derive(this.settings), this.settings.twoColor) };
       this.cache.set(id, p);
