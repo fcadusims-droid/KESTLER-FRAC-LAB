@@ -324,3 +324,61 @@ input[type='color'] {
 .pos-input {
   width: 72px;
 }
+
+.inline-field {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.inline-field input {
+  width: 90px;
+}
+
+.estimate {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 10px;
+  margin: 0;
+  font-size: 12px;
+}
+
+.estimate dt {
+  color: var(--muted);
+}
+
+.estimate dd {
+  margin: 0;
+}
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.progress progress {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.error-text {
+  color: var(--danger);
+  margin: 0;
+  font-size: 12px;
+}
+
+.warning-text {
+  color: var(--warn);
+  margin: 0;
+  font-size: 12px;
+}
+
+.success-text {
+  color: #7ee2a8;
+  margin: 0;
+  font-size: 12px;
+}
