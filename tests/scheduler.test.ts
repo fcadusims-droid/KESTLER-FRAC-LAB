@@ -1,37 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { WorkerPool, type WorkerLike } from '../src/render/pool.ts';
 import { RenderScheduler } from '../src/render/scheduler.ts';
-import { handleRequest } from '../src/render/workers/handler.ts';
+import { fakePool } from './helpers/fakeWorker.ts';
 import { renderTileFloat64, type FractalParams } from '../src/core/formulas/index.ts';
 import type { Frame } from '../src/core/view.ts';
-import type { WorkerRequest, WorkerResponse } from '../src/render/protocol.ts';
-
-/** In-process worker: runs the real handler asynchronously. */
-class FakeWorker implements WorkerLike {
-  onmessage: ((e: MessageEvent<WorkerResponse>) => void) | null = null;
-  onerror: ((e: ErrorEvent) => void) | null = null;
-  executed = 0;
-  postMessage(message: WorkerRequest): void {
-    setTimeout(() => {
-      this.executed++;
-      const { response } = handleRequest(structuredClone(message));
-      this.onmessage?.({ data: response } as MessageEvent<WorkerResponse>);
-    }, 1);
-  }
-  terminate(): void {}
-}
 
 const params: FractalParams = { formula: 'mandelbrot', juliaRe: 0, juliaIm: 0, maxIter: 200, escapeRadius: 256 };
 const frame: Frame = { cx: -0.5, cy: 0, scale: 3 / 64, width: 96, height: 64 };
 
 function setup(size = 2) {
-  const workers: FakeWorker[] = [];
-  const pool = new WorkerPool(() => {
-    const w = new FakeWorker();
-    workers.push(w);
-    return w;
-  }, size);
-  return { pool, workers, scheduler: new RenderScheduler(pool), executed: () => workers.reduce((a, w) => a + w.executed, 0) };
+  const f = fakePool(size);
+  return { ...f, scheduler: new RenderScheduler(f.pool) };
 }
 
 describe('RenderScheduler', () => {

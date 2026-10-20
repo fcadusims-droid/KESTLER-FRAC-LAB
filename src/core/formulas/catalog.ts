@@ -14,8 +14,9 @@ export const FORMULAS: Record<FormulaId, FormulaInfo> = {
   burningShip: {
     id: 'burningShip',
     label: 'Burning Ship',
-    formula: 'z ← (|Re z| + i|Im z|)² + c',
-    defaultView: { cx: -0.45, cy: -0.5, span: 2.6 },
+    // Mirror image of the classic (|Re z| + i|Im z|)² + c, which is usually drawn with Im pointing down.
+    formula: 'z ← (|Re z| − i|Im z|)² + c  (classic form mirrored so the ship is upright)',
+    defaultView: { cx: -0.45, cy: 0.6, span: 2.4 },
   },
 };
 

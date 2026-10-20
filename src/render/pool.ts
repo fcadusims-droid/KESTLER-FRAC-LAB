@@ -10,6 +10,8 @@ export interface WorkerLike {
 
 export type WorkerFactory = () => WorkerLike;
 
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+
 export class CancelledError extends Error {
   constructor() {
     super('cancelled');
@@ -61,7 +63,7 @@ export class WorkerPool {
     }
   }
 
-  run(group: number, request: Omit<WorkerRequest, 'taskId'>, transfer: Transferable[] = []): Promise<WorkerResponse> {
+  run(group: number, request: DistributiveOmit<WorkerRequest, 'taskId'>, transfer: Transferable[] = []): Promise<WorkerResponse> {
     return new Promise((resolve, reject) => {
       const full = { ...request, taskId: this.nextTaskId++ } as WorkerRequest;
       this.queue.push({ group, request: full, transfer, resolve, reject });

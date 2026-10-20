@@ -16,7 +16,7 @@ function fmtZoom(z: number): string {
 
 export function InfoOverlay({ cx, cy, zoom, stats, backend, precisionWarning }: Props) {
   return (
-    <div className="overlay" aria-live="polite">
+    <div className="overlay">
       <div className="overlay-grid">
         <span>Re</span>
         <code data-testid="center-re">{String(cx)}</code>
@@ -24,10 +24,12 @@ export function InfoOverlay({ cx, cy, zoom, stats, backend, precisionWarning }: 
         <code data-testid="center-im">{String(cy)}</code>
         <span>Zoom</span>
         <code data-testid="zoom">{fmtZoom(zoom)}</code>
-        <span>Iterations</span>
-        <code>{stats ? stats.maxIter.toLocaleString('en-US') : '—'}</code>
-        <span>Backend</span>
-        <code>{backend}</code>
+        <span className="secondary">Iterations</span>
+        <code className="secondary">{stats ? stats.maxIter.toLocaleString('en-US') : '—'}</code>
+        <span className="secondary">Backend</span>
+        <code className="secondary" data-testid="backend">
+          {backend}
+        </code>
         <span>Render</span>
         <code data-testid="render-status">
           {!stats

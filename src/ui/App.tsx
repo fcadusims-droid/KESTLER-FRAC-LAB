@@ -10,16 +10,21 @@ import { FractalCanvas } from './FractalCanvas.tsx';
 import { InfoOverlay } from './InfoOverlay.tsx';
 import { FormulaPanel } from './panels/FormulaPanel.tsx';
 import { ColorPanel } from './panels/ColorPanel.tsx';
+import { ExportPanel } from './panels/ExportPanel.tsx';
+import { ProjectPanel } from './panels/ProjectPanel.tsx';
+import { loadAutosave, saveAutosave } from '../project/storage.ts';
 import type { ViewerStats } from './viewer.ts';
 
+/** Priority: shared link (URL hash) → last session in this browser → defaults. */
 function initialState(): { state: FractalState; error: string | null } {
+  let error: string | null = null;
   try {
     const fromHash = decodeHash(window.location.hash);
     if (fromHash) return { state: fromHash, error: null };
   } catch (err) {
-    return { state: defaultState(), error: `Could not read the link: ${(err as Error).message}` };
+    error = `Could not read the link: ${(err as Error).message}`;
   }
-  return { state: defaultState(), error: null };
+  return { state: loadAutosave() ?? defaultState(), error };
 }
 
 export function App() {
@@ -43,6 +48,12 @@ export function App() {
       const hash = encodeHash(state);
       if (hash !== window.location.hash) history.replaceState(null, '', hash);
     }, 250);
+    return () => clearTimeout(t);
+  }, [state]);
+
+  // Auto-save the session to localStorage (per browser, not synced).
+  useEffect(() => {
+    const t = setTimeout(() => saveAutosave(state), 1000);
     return () => clearTimeout(t);
   }, [state]);
 
@@ -78,6 +89,7 @@ export function App() {
         <header className="brand">
           <h1>Fractal Lab</h1>
           <p>Computed in your browser · {pool.size} worker{pool.size === 1 ? '' : 's'}</p>
+          <p className="hint">Drag to pan · scroll, pinch or double-click to zoom · arrows / + / − / R on the canvas</p>
         </header>
         {notice && (
           <div className="notice" role="alert">
@@ -89,6 +101,8 @@ export function App() {
         )}
         <FormulaPanel state={state} resolvedIter={resolvedIter} onChange={patch} onFormula={setFormula} onResetView={resetView} />
         <ColorPanel palette={state.palette} color={state.color} onPalette={(palette) => patch({ palette })} onColor={(color) => patch({ color })} />
+        <ExportPanel state={state} stats={stats} onSize={(exportSize) => patch({ exportSize })} />
+        <ProjectPanel state={state} onLoad={setState} />
       </aside>
       <main className="workspace">
         <FractalCanvas pool={pool} view={state.view} paramsFor={paramsFor} lut={lut} onViewChange={setView} onStats={setStats} onReset={resetView} />

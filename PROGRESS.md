@@ -79,8 +79,84 @@ by the owner; the Deploy workflow succeeded and `https://fcadusims-droid.github.
 returned HTTP 200 with `/KESTLER-FRAC-LAB/`-prefixed assets (fetched with curl). M2–M4 are in
 PR https://github.com/fcadusims-droid/KESTLER-FRAC-LAB/pull/2 and are not deployed until it merges.
 
+## Milestone 5 — High-resolution PNG export ✅
+Done:
+- Pipeline: full-width bands rendered in workers (`src/export/band.ts`) → each band colored and
+  PNG-filtered (adaptive None/Sub/Up/Average/Paeth per row) in the worker; the row above each
+  band is recomputed from global pixel indices so filtering crosses band boundaries exactly →
+  main thread streams filtered rows through fflate's streaming `Zlib` (DEFLATE + zlib wrapper,
+  as PNG requires) → ~256 KB IDAT chunks with CRC-32 → sink.
+- Bounded memory: at most 2 × pool-size bands in flight; no full-image RGBA or value buffer.
+- Sinks: `FileSink` (File System Access API, streams to disk) or `MemorySink` (compressed
+  chunks folded into Blobs, downloaded at the end).
+- UI: presets 1920×1080 / 3840×2160 / 7680×4320 / 15360×8640 + custom (integers 1..32768,
+  ≤ 400 MP, invalid input disables export — never silently changed), pixel count, working
+  memory, output path, rough time (from the last full render), large-size warning when no
+  streaming path, aspect-ratio note, progress %, cancel, errors, final size/time.
+- Project JSON embedded in a `tEXt` chunk (keyword `FractalLab`, ASCII-escaped).
+- `scripts/big-export.mjs`, `scripts/verify-png.ts`: reproducible large-export measurements.
+
+Verified:
+- Unit: 83 tests (PNG 257×129, 1×1, 33×65, 500×3 in various band sizes decode with fast-png and
+  match a direct render pixel-for-pixel; band size doesn't change IDAT data; CRCs checked with
+  node:zlib; exporter via worker pool matches direct render; cancel aborts sink and stops work;
+  bounded in-flight bands; project JSON round-trip and strict rejection).
+- Playwright: Blob/download path (257×129) and streaming path (300×211, mocked
+  `showSaveFilePicker` writer) each produce PNGs identical to a Node direct render; embedded
+  tEXt parses; invalid custom sizes disable export.
+- Large exports actually run (headless Chromium 141, 4 vCPU → 3 workers, view
+  Mandelbrot −0.7436…+0.1318i span 0.003, 1000 iterations, level 6):
+
+  | Size | Path | Time | File | Peak Chrome RSS (all processes, baseline ~780 MB) |
+  |---|---|---|---|---|
+  | 1920×1080 | download | 0.9 s | 1.5 MB | +34 MB |
+  | 7680×4320 | download | 7.6 s | 17.9 MB | +237 MB |
+  | 15360×8640 | download | 22.9 s | 61.8 MB | +257 MB |
+  | 15360×8640 | stream (mock writer) | 20.8 s | 61.8 MB (same bytes) | +241 MB |
+
+  8K and 16K files were decoded in Node (fast-png) and 45 / 41 sampled rows compared
+  pixel-for-pixel with a direct render: 0 mismatches.
+
+Not verified: the native save dialog + real `FileSystemWritableFileStream` (cannot be driven
+headless; the streaming code path was exercised with a mock writer). Firefox/Safari untested.
+
+## Milestone 6 — Projects & presets ✅
+Done:
+- Versioned project JSON `{ "version": 1, "app": "fractal-lab", formula, julia, view, iterations,
+  escapeRadius, palette, color, exportSize }` (`src/project/project.ts`); strict validation
+  (`src/project/validate.ts`): unknown fields/versions, wrong types, out-of-range values and
+  malformed colors are rejected with a path-specific message; only `JSON.parse`, never eval.
+- Save project (.json download) / Open project (.json, or a PNG exported with embedded tEXt).
+- localStorage: auto-saved last session (restored when the URL has no hash) and named user
+  presets (save/replace, load, delete). UI states it is per-browser, not cloud sync.
+- Julia presets (6 constants from the spec) in the formula panel.
+- Burning Ship: rendered as the mirror image of the classic `(|Re z| + i|Im z|)² + c`
+  (i.e. `(|Re z| − i|Im z|)² + c`) so the ship is upright with Im pointing up; stated in the UI.
+
+Verified:
+- Unit: 89 tests (adds storage round-trip/corrupt data/quota failure, PNG tEXt reader, Burning
+  Ship mirror equivalence with the classic form).
+- Playwright: 12 tests (adds project save → parse; malformed and unsupported-version files show
+  messages and leave state untouched; opening a project applies it; presets + autosave survive a
+  reload; re-opening an exported PNG restores its project).
+- Screenshots of Burning Ship inspected (upright after the change).
+
+## Milestone 7 — Hardening ✅
+Done:
+- Playwright smoke tests run in CI (`ci.yml`), 13 tests.
+- Performance: `scripts/bench.ts` (1 thread, core) and `scripts/bench-browser.mjs` (app, full
+  render with workers); results in README. Split the Burning Ship loop out of the shared loop
+  (~25% faster for it); a per-formula tile loop was tried and dropped (no measurable gain).
+- UI: removed `aria-live` from the constantly-updating overlay (would flood screen readers);
+  precision warning keeps `role=alert`; control help line; compact overlay on narrow screens;
+  mobile layout checked by screenshot (Pixel 7 emulation).
+- README.md and DEPLOYMENT.md complete.
+
+Verified: 89 unit + 13 Playwright tests pass; lint/typecheck/build pass; benchmark numbers
+in README measured in this container (headless Chromium 141, 4 vCPU).
+
 ## Next
-Milestone 5 — banded streaming PNG export.
+Milestone 8 (optional) — WebGPU float32 preview backend with fallback. Not started.
 
 ## Known issues
 - None yet.
