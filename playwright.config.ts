@@ -28,7 +28,8 @@ export default defineConfig({
     command: `npx vite build --outDir dist-e2e && npx vite preview --outDir dist-e2e --port ${PORT} --strictPort`,
     env: { VITE_BASE: BASE },
     url: `http://localhost:${PORT}${BASE}`,
-    reuseExistingServer: !process.env.CI,
+    // Always build and serve fresh so tests never run against a stale build.
+    reuseExistingServer: false,
     timeout: 120_000,
   },
 });

@@ -1,43 +1,104 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { View } from '../core/view.ts';
+import { FORMULAS, type FormulaId } from '../core/formulas/index.ts';
+import { buildLut } from '../core/color/index.ts';
+import { isBeyondFloat64Precision } from '../core/precision.ts';
+import { getPreviewPool } from '../render/createPool.ts';
+import { decodeHash, encodeHash } from '../project/hash.ts';
+import { defaultState, fractalParams, stateZoom, type FractalState } from '../project/state.ts';
+import { FractalCanvas } from './FractalCanvas.tsx';
+import { InfoOverlay } from './InfoOverlay.tsx';
+import { FormulaPanel } from './panels/FormulaPanel.tsx';
+import type { ViewerStats } from './viewer.ts';
 
-// Milestone 1 scaffold: a basic single-threaded Mandelbrot to validate the
-// build and deployment pipeline. Replaced by the worker renderer in Milestone 3.
+function initialState(): { state: FractalState; error: string | null } {
+  try {
+    const fromHash = decodeHash(window.location.hash);
+    if (fromHash) return { state: fromHash, error: null };
+  } catch (err) {
+    return { state: defaultState(), error: `Could not read the link: ${(err as Error).message}` };
+  }
+  return { state: defaultState(), error: null };
+}
+
 export function App() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [init] = useState(initialState);
+  const [state, setState] = useState<FractalState>(init.state);
+  const [notice, setNotice] = useState<string | null>(init.error);
+  const [stats, setStats] = useState<ViewerStats | null>(null);
+  const pool = getPreviewPool();
 
+  const patch = useCallback((p: Partial<FractalState>) => setState((s) => ({ ...s, ...p })), []);
+  const setView = useCallback((view: View) => setState((s) => ({ ...s, view })), []);
+  const resetView = useCallback(() => setState((s) => ({ ...s, view: { ...FORMULAS[s.formula].defaultView } })), []);
+  const setFormula = useCallback(
+    (formula: FormulaId) => setState((s) => ({ ...s, formula, view: { ...FORMULAS[formula].defaultView } })),
+    [],
+  );
+
+  // Keep the URL hash in sync (debounced) so every view is a shareable link.
   useEffect(() => {
-    const canvas = canvasRef.current!;
-    const w = (canvas.width = 640);
-    const h = (canvas.height = 400);
-    const ctx = canvas.getContext('2d')!;
-    const img = ctx.createImageData(w, h);
-    const scale = 3 / h;
-    for (let py = 0; py < h; py++) {
-      for (let px = 0; px < w; px++) {
-        const cr = -0.5 + (px + 0.5 - w / 2) * scale;
-        const ci = -(py + 0.5 - h / 2) * scale;
-        let x = 0, y = 0, n = 0;
-        while (n < 200 && x * x + y * y <= 4) {
-          const t = x * x - y * y + cr;
-          y = 2 * x * y + ci;
-          x = t;
-          n++;
-        }
-        const v = n === 200 ? 0 : 255 * Math.sqrt(n / 200);
-        const i = (py * w + px) * 4;
-        img.data[i] = v * 0.4;
-        img.data[i + 1] = v * 0.8;
-        img.data[i + 2] = v;
-        img.data[i + 3] = 255;
+    const t = setTimeout(() => {
+      const hash = encodeHash(state);
+      if (hash !== window.location.hash) history.replaceState(null, '', hash);
+    }, 250);
+    return () => clearTimeout(t);
+  }, [state]);
+
+  // Load state when the user navigates to a different link in the same tab.
+  useEffect(() => {
+    const onHash = () => {
+      try {
+        const s = decodeHash(window.location.hash);
+        if (s && window.location.hash !== encodeHash(state)) setState(s);
+      } catch (err) {
+        setNotice(`Could not read the link: ${(err as Error).message}`);
       }
-    }
-    ctx.putImageData(img, 0, 0);
-  }, []);
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, [state]);
+
+  const { formula, julia, iterations, escapeRadius } = state;
+  const paramsFor = useMemo(
+    () => (view: View) => fractalParams({ ...defaultState(formula), formula, julia, iterations, escapeRadius, view }),
+    [formula, julia, iterations, escapeRadius],
+  );
+  const lut = useMemo(() => buildLut(state.palette, state.color), [state.palette, state.color]);
+  const resolvedIter = paramsFor(state.view).maxIter;
+  const zoom = stateZoom(state);
+  const precisionWarning = stats
+    ? isBeyondFloat64Precision({ cx: state.view.cx, cy: state.view.cy, scale: state.view.span / Math.min(stats.width, stats.height) })
+    : false;
 
   return (
-    <main style={{ background: '#0b1020', color: '#dde', minHeight: '100vh', padding: 16, fontFamily: 'system-ui' }}>
-      <h1>Fractal Lab</h1>
-      <canvas ref={canvasRef} data-testid="fractal-canvas" />
-    </main>
+    <div className="app">
+      <aside className="sidebar" aria-label="Controls">
+        <header className="brand">
+          <h1>Fractal Lab</h1>
+          <p>Computed in your browser · {pool.size} worker{pool.size === 1 ? '' : 's'}</p>
+        </header>
+        {notice && (
+          <div className="notice" role="alert">
+            <span>{notice}</span>
+            <button type="button" aria-label="Dismiss" onClick={() => setNotice(null)}>
+              ×
+            </button>
+          </div>
+        )}
+        <FormulaPanel state={state} resolvedIter={resolvedIter} onChange={patch} onFormula={setFormula} onResetView={resetView} />
+      </aside>
+      <main className="workspace">
+        <FractalCanvas pool={pool} view={state.view} paramsFor={paramsFor} lut={lut} onViewChange={setView} onStats={setStats} onReset={resetView} />
+        <InfoOverlay
+          cx={state.view.cx}
+          cy={state.view.cy}
+          zoom={zoom}
+          stats={stats}
+          backend={`CPU float64 · ${pool.size} worker${pool.size === 1 ? '' : 's'}`}
+          precisionWarning={precisionWarning}
+        />
+      </main>
+    </div>
   );
 }

@@ -32,8 +32,33 @@ Verified: `npm test` — 37 tests pass (known points, Julia, iteration limit, sm
 continuity/monotonicity along a ray, boundary bisection, mapping, aspect, anchored zoom,
 pan, tiled vs full byte-identical for 3 formulas, precision). Lint and build pass.
 
+## Milestone 3 — Workers + interaction ✅
+Done:
+- `src/render/pool.ts`: fixed-size `WorkerPool` (size = clamp(hardwareConcurrency − 1, 1, 8)),
+  one task per worker, FIFO queue, group-based cancellation of queued tasks.
+- `src/render/scheduler.ts`: `RenderScheduler` with incrementing render ids; a new render
+  cancels queued tiles of older renders and discards stale in-flight results; superseded → null.
+- `src/render/workers/render.worker.ts` (module worker via `new URL(..., import.meta.url)`),
+  `handler.ts` shared with tests; results transferred as `ArrayBuffer`.
+- `src/ui/viewer.ts`: canvas at devicePixelRatio; reprojection of the last image during
+  interaction; low-res preview (~120k px) during input, full-res progressive tiles (center-out)
+  180 ms after input settles; wheel zoom at cursor, drag pan, pinch zoom, double-click zoom,
+  keyboard (arrows, +/-, R). Main thread only colorizes; it never iterates.
+- Info overlay (center, zoom vs default view, iterations, backend, render time, precision warning).
+- URL hash encodes the full state (`src/project/hash.ts`), validated on load; `hashchange` handled.
+- Color core (`src/core/color/`) — palettes, LUT, adjustments, colorize — used for display.
+
+Verified:
+- Unit: 44 tests pass (adds scheduler: identical values vs direct render, stale discard,
+  cancellation stops queued work; hash round-trip/rejection).
+- Playwright (Chromium 141, subpath `/fractal-lab/`): loads with no console errors, worker URLs
+  are under `/fractal-lab/`, canvas non-blank, wheel zoom changes the image and the hash, a
+  shared link restores the view. Screenshots inspected manually (default and 5e4× zoom).
+
+Not verified: pinch zoom on a real touch device; keyboard shortcuts (no automated test yet).
+
 ## Next
-Milestone 3 — workers + interaction.
+Milestone 4 — coloring UI (palette picker, gradient editor, adjustments) → MVP.
 
 ## Known issues
 - None yet.
