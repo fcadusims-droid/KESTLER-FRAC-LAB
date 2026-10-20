@@ -17,8 +17,70 @@ Verified (locally, Node 22.22.0):
 Not verified:
 - Workflows have not run on GitHub yet. Pages not enabled (gh CLI not authenticated) — see `DEPLOYMENT.md`.
 
+## Milestone 2 — Math core + tests ✅
+Done:
+- `src/core/view.ts`: `View` (cx, cy, span across min(W,H)) ↔ `Frame` (cx, cy, scale, W, H),
+  spec pixel mapping (y up, global indices), cursor-anchored `zoomAt`, `pan`, `zoomLevel`.
+- `src/core/formulas/`: Mandelbrot (cardioid + period-2 bulb checks, exact-repeat
+  periodicity check), Julia, Burning Ship; smooth value `n + 1 - log2(ln|z|)` clamped ≥ 0,
+  `INTERIOR = -1` sentinel; `renderTileFloat64`; Julia presets; per-formula default views.
+- `src/core/iterations.ts`: auto iterations from zoom depth; fixed values clamped 10..100000.
+- `src/core/precision.ts`: `PrecisionBackend` extension point (one backend: `cpu-f64`),
+  float64 limit diagnostic (`scale / max(|cx|,|cy|,1e-300) < 1e-14`).
+
+Verified: `npm test` — 37 tests pass (known points, Julia, iteration limit, smooth
+continuity/monotonicity along a ray, boundary bisection, mapping, aspect, anchored zoom,
+pan, tiled vs full byte-identical for 3 formulas, precision). Lint and build pass.
+
+## Milestone 3 — Workers + interaction ✅
+Done:
+- `src/render/pool.ts`: fixed-size `WorkerPool` (size = clamp(hardwareConcurrency − 1, 1, 8)),
+  one task per worker, FIFO queue, group-based cancellation of queued tasks.
+- `src/render/scheduler.ts`: `RenderScheduler` with incrementing render ids; a new render
+  cancels queued tiles of older renders and discards stale in-flight results; superseded → null.
+- `src/render/workers/render.worker.ts` (module worker via `new URL(..., import.meta.url)`),
+  `handler.ts` shared with tests; results transferred as `ArrayBuffer`.
+- `src/ui/viewer.ts`: canvas at devicePixelRatio; reprojection of the last image during
+  interaction; low-res preview (~120k px) during input, full-res progressive tiles (center-out)
+  180 ms after input settles; wheel zoom at cursor, drag pan, pinch zoom, double-click zoom,
+  keyboard (arrows, +/-, R). Main thread only colorizes; it never iterates.
+- Info overlay (center, zoom vs default view, iterations, backend, render time, precision warning).
+- URL hash encodes the full state (`src/project/hash.ts`), validated on load; `hashchange` handled.
+- Color core (`src/core/color/`) — palettes, LUT, adjustments, colorize — used for display.
+
+Verified:
+- Unit: 44 tests pass (adds scheduler: identical values vs direct render, stale discard,
+  cancellation stops queued work; hash round-trip/rejection).
+- Playwright (Chromium 141, subpath `/fractal-lab/`): loads with no console errors, worker URLs
+  are under `/fractal-lab/`, canvas non-blank, wheel zoom changes the image and the hash, a
+  shared link restores the view. Screenshots inspected manually (default and 5e4× zoom).
+
+Not verified: pinch zoom on a real touch device; keyboard shortcuts (no automated test yet).
+
+## Milestone 4 — Coloring ✅ (MVP)
+Done:
+- 8 built-in palettes (Deep Ocean, Electric, Ember, Monochrome, Aurora, Gold, Ultraviolet, Spectrum).
+- Gradient editor: draggable stops (pointer + arrow keys), add/remove, hex input, color picker,
+  numeric position. Cyclic gradient.
+- Offset, cycle length (number + log slider), gamma, brightness, contrast, hue shift,
+  saturation, invert, interior color. All baked into a 2048-entry LUT.
+- Instant recolor: the viewer keeps the Float32 smooth-value buffer and recolors it (plus any
+  finished tiles of an in-progress render) without recomputing.
+- Fixed: a link with `pal=<builtin>` but no `st` now uses that palette's colors.
+
+Verified:
+- Unit: 54 tests pass (adds gradient sampling/wrap, adjustments, colorize, palette-by-name).
+- Playwright: 6 tests pass, incl. palette change alters pixels while the render status (last
+  full render time) stays unchanged → no recompute; keyboard +/R; gradient add/edit/remove.
+- Screenshot inspected (Julia −0.8+0.156i with the color panel).
+
+Deployment: PR https://github.com/fcadusims-droid/KESTLER-FRAC-LAB/pull/1 (M1 only) was merged
+by the owner; the Deploy workflow succeeded and `https://fcadusims-droid.github.io/KESTLER-FRAC-LAB/`
+returned HTTP 200 with `/KESTLER-FRAC-LAB/`-prefixed assets (fetched with curl). M2–M4 are in
+PR https://github.com/fcadusims-droid/KESTLER-FRAC-LAB/pull/2 and are not deployed until it merges.
+
 ## Next
-Milestone 2 — math core + unit tests.
+Milestone 5 — banded streaming PNG export.
 
 ## Known issues
 - None yet.
