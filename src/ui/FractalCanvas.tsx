@@ -3,6 +3,7 @@ import type { View } from '../core/view.ts';
 import type { FractalParams } from '../core/formulas/types.ts';
 import type { ColorLut } from '../core/color/lut.ts';
 import type { WorkerPool } from '../render/pool.ts';
+import type { WebGpuRenderer } from '../render/gpu/webgpu.ts';
 import { Viewer, type ViewerStats } from './viewer.ts';
 
 interface Props {
@@ -10,12 +11,14 @@ interface Props {
   view: View;
   paramsFor: (view: View) => FractalParams;
   lut: ColorLut;
+  gpu: WebGpuRenderer | null;
+  useGpu: boolean;
   onViewChange: (view: View) => void;
   onStats: (stats: ViewerStats) => void;
   onReset: () => void;
 }
 
-export function FractalCanvas({ pool, view, paramsFor, lut, onViewChange, onStats, onReset }: Props) {
+export function FractalCanvas({ pool, view, paramsFor, lut, gpu, useGpu, onViewChange, onStats, onReset }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const viewerRef = useRef<Viewer | null>(null);
   const cbRef = useRef({ onViewChange, onStats, onReset });
@@ -46,6 +49,7 @@ export function FractalCanvas({ pool, view, paramsFor, lut, onViewChange, onStat
   useEffect(() => viewerRef.current?.setView(view), [view]);
   useEffect(() => viewerRef.current?.setParamsResolver(paramsFor), [paramsFor]);
   useEffect(() => viewerRef.current?.setLut(lut), [lut]);
+  useEffect(() => viewerRef.current?.setGpu(gpu, useGpu), [gpu, useGpu, pool]);
 
   return (
     <canvas

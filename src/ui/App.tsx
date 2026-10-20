@@ -4,6 +4,7 @@ import { FORMULAS, type FormulaId } from '../core/formulas/index.ts';
 import { buildLut } from '../core/color/index.ts';
 import { isBeyondFloat64Precision } from '../core/precision.ts';
 import { getPreviewPool } from '../render/createPool.ts';
+import { getWebGpuRenderer, type WebGpuRenderer } from '../render/gpu/webgpu.ts';
 import { decodeHash, encodeHash } from '../project/hash.ts';
 import { defaultState, fractalParams, stateZoom, type FractalState } from '../project/state.ts';
 import { FractalCanvas } from './FractalCanvas.tsx';
@@ -33,6 +34,16 @@ export function App() {
   const [notice, setNotice] = useState<string | null>(init.error);
   const [stats, setStats] = useState<ViewerStats | null>(null);
   const pool = getPreviewPool();
+  const [gpu, setGpu] = useState<WebGpuRenderer | null | 'checking'>('checking');
+  const [useGpu, setUseGpu] = useState(() => new URLSearchParams(window.location.search).get('gpu') !== '0');
+
+  useEffect(() => {
+    let alive = true;
+    getWebGpuRenderer().then((r) => alive && setGpu(r));
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const patch = useCallback((p: Partial<FractalState>) => setState((s) => ({ ...s, ...p })), []);
   const setView = useCallback((view: View) => setState((s) => ({ ...s, view })), []);
@@ -100,18 +111,41 @@ export function App() {
           </div>
         )}
         <FormulaPanel state={state} resolvedIter={resolvedIter} onChange={patch} onFormula={setFormula} onResetView={resetView} />
+        <section className="section render-options" aria-label="Rendering backend">
+          <label className="check">
+            <input type="checkbox" checked={useGpu && gpu !== null && gpu !== 'checking'} disabled={!gpu || gpu === 'checking'} onChange={(e) => setUseGpu(e.target.checked)} />
+            Use WebGPU (float32) for the interactive view
+          </label>
+          <p className="hint">
+            {gpu === 'checking'
+              ? 'Checking for WebGPU…'
+              : gpu === null
+                ? 'WebGPU is not available in this browser; using the CPU (float64).'
+                : 'Switches to CPU float64 automatically when zoomed too deep for float32. Exports always use CPU float64.'}
+          </p>
+        </section>
         <ColorPanel palette={state.palette} color={state.color} onPalette={(palette) => patch({ palette })} onColor={(color) => patch({ color })} />
         <ExportPanel state={state} stats={stats} onSize={(exportSize) => patch({ exportSize })} />
         <ProjectPanel state={state} onLoad={setState} />
       </aside>
       <main className="workspace">
-        <FractalCanvas pool={pool} view={state.view} paramsFor={paramsFor} lut={lut} onViewChange={setView} onStats={setStats} onReset={resetView} />
+        <FractalCanvas
+          pool={pool}
+          view={state.view}
+          paramsFor={paramsFor}
+          lut={lut}
+          gpu={gpu === 'checking' ? null : gpu}
+          useGpu={useGpu}
+          onViewChange={setView}
+          onStats={setStats}
+          onReset={resetView}
+        />
         <InfoOverlay
           cx={state.view.cx}
           cy={state.view.cy}
           zoom={zoom}
           stats={stats}
-          backend={`CPU float64 · ${pool.size} worker${pool.size === 1 ? '' : 's'}`}
+          backend={stats?.backend ?? `CPU float64 · ${pool.size} worker${pool.size === 1 ? '' : 's'}`}
           precisionWarning={precisionWarning}
         />
       </main>

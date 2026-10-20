@@ -3,8 +3,9 @@
 A browser fractal explorer and high-resolution PNG exporter, hosted on GitHub Pages:
 **https://fcadusims-droid.github.io/KESTLER-FRAC-LAB/**
 
-It is a static site. Every pixel is computed in **your browser**, in Web Workers, in
-float64 on the CPU. Nothing is computed on a server, and no image is ever pre-rendered or
+It is a static site. Every pixel is computed in **your browser**: in Web Workers in float64 on
+the CPU, or, for the interactive view only, in a WebGPU compute shader in float32 when your
+browser supports it. Nothing is computed on a server, and no image is ever pre-rendered or
 upscaled.
 
 ## Features
@@ -20,8 +21,16 @@ upscaled.
   - wheel zoom anchored at the cursor, drag to pan, pinch zoom, double-click zoom (Shift to zoom out)
   - keyboard on the canvas: arrows pan, `+`/`−` zoom, `R` resets
   - shows a low-res preview while you interact, then full-resolution tiles once you stop
-- **Info overlay**: center, zoom relative to the default view, iterations, backend, render
-  time, and a warning when the view reaches the limit of double precision.
+- **Backends**:
+  - *CPU float64* (worker pool) is used for everything that must be exact, including all
+    exports.
+  - *WebGPU float32* is optional and covers the interactive view only. It is feature-detected
+    and can be turned off with a checkbox.
+  - The app falls back to CPU float64 automatically once pixel size divided by coordinate
+    magnitude drops below 2e-5 (where float32 breaks down), or if the GPU device is lost or the
+    canvas exceeds the GPU buffer limit. The overlay shows which backend is active and why.
+- **Info overlay**: center, zoom relative to the default view, iterations, active backend,
+  render time, and a warning when the view reaches the limit of double precision.
 - **Shareable links**: the whole state (view, formula, iterations, palette, color settings,
   export size) is kept in the URL hash.
 - **Coloring**: 8 built-in palettes (Deep Ocean, Electric, Ember, Monochrome, Aurora, Gold,
@@ -49,7 +58,8 @@ upscaled.
 
 ```
 src/core/      pure math, no React/DOM: view mapping, formulas, iterations, precision, color
-src/render/    worker pool, render scheduler (render IDs, stale discard, cancel), tiles, worker entry
+src/render/    worker pool, render scheduler (render IDs, stale discard, cancel), tiles, worker entry,
+               gpu/ (WGSL compute shader + WebGPU float32 renderer)
 src/export/    PNG filter, streaming encoder (fflate Zlib → IDAT + CRC-32), band renderer, sinks, exporter
 src/project/   app state, URL hash, project JSON + strict validation, localStorage, PNG tEXt reader
 src/ui/        React components and the imperative canvas controller (viewer.ts)
@@ -101,7 +111,11 @@ Your times will differ with CPU, core count, browser and view.
   apart. The image breaks into blocks and the overlay shows a warning. Perturbation theory or
   arbitrary precision would fix this. The `PrecisionBackend` interface in
   `src/core/precision.ts` is where such a backend would plug in.
-- **CPU only.** No GPU backend exists.
+- **The WebGPU backend's correctness was checked only on Chromium's software adapter
+  (SwiftShader, `--enable-unsafe-webgpu`), not on a real GPU.** No GPU speed-up has been
+  measured. Compared with CPU float64, 0.14% of pixels differ visibly at the default
+  Mandelbrot view, 0.33% for Julia −0.8+0.156i, and ~3% at 130× zoom near the boundary,
+  where float32 and float64 orbits diverge. Exports never use it.
 - **No antialiasing / supersampling** in previews or exports yet.
 - **Compression runs on the main thread** during export. The page stays usable, but
   interaction can stutter briefly while a band is being compressed.
@@ -118,7 +132,7 @@ Your times will differ with CPU, core count, browser and view.
 
 Deep zoom via perturbation theory (with series approximation) or arbitrary precision;
 histogram-equalized coloring; orbit traps; distance-estimation shading; supersampling;
-a WebGPU float32 preview backend that falls back to the CPU at depths where float32 fails;
+double-single (float-float) arithmetic on the GPU to push the float32 limit deeper;
 moving compression off the main thread.
 
 ## Development
@@ -133,6 +147,8 @@ npm run lint
 npm test           # unit tests (Vitest, Node)
 npm run build      # typecheck + production build into dist/
 npm run test:e2e   # Playwright smoke tests against a /fractal-lab/ subpath build
+                   # (project "chromium-webgpu" runs with --enable-unsafe-webgpu and is
+                   #  skipped with a reason if no WebGPU adapter is available)
 ```
 
 If Playwright's bundled Chromium is not installed, point it at an existing one:

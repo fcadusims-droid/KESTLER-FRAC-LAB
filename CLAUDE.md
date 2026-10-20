@@ -15,7 +15,8 @@ Locally, if Playwright's bundled Chromium is missing, run e2e with
 
 ## Layout
 - `src/core/` — pure math (view mapping, formulas, iterations, precision, color). No React/DOM.
-- `src/render/` — worker pool, scheduler (render IDs, stale discard, cancel), tiles, worker entry.
+- `src/render/` — worker pool, scheduler (render IDs, stale discard, cancel), tiles, worker entry;
+  `gpu/` WebGPU float32 preview renderer (interactive view only; exports are always CPU float64).
 - `src/export/` — streaming PNG encoder, sinks, banded exporter.
 - `src/project/` — project JSON schema/validation, URL hash, localStorage.
 - `src/ui/` — React components.
@@ -35,4 +36,5 @@ Locally, if Playwright's bundled Chromium is missing, run e2e with
 - Report only what was actually run and observed; separate verified (and how) /
   implemented-but-unverified / not implemented.
 - Never claim GPU acceleration, deep zoom, 16K export or a live deployment without direct evidence.
+  (WebGPU is verified for correctness on SwiftShader only; no real-GPU performance data exists.)
 - Document limitations of a static browser app instead of papering over them.
