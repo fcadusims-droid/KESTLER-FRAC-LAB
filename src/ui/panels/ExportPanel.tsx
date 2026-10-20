@@ -47,9 +47,20 @@ function fileName(state: FractalState, w: number, h: number): string {
 export function ExportPanel({ state, stats, onSize }: Props) {
   const { width, height } = state.exportSize;
   const presetIndex = PRESETS.findIndex((p) => p.width === width && p.height === height);
-  const [custom, setCustom] = useState(presetIndex < 0);
+  const [customMode, setCustom] = useState(presetIndex < 0);
+  // A loaded project or link may carry a non-preset size.
+  const custom = customMode || presetIndex < 0;
   const [wText, setWText] = useState(String(width));
   const [hText, setHText] = useState(String(height));
+  const [syncedSize, setSyncedSize] = useState(state.exportSize);
+  if (syncedSize !== state.exportSize) {
+    // Size changed from outside (project load): show it in the custom fields.
+    setSyncedSize(state.exportSize);
+    if (validateDim(wText) !== width || validateDim(hText) !== height) {
+      setWText(String(width));
+      setHText(String(height));
+    }
+  }
   const [embed, setEmbed] = useState(true);
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
   const abortRef = useRef<AbortController | null>(null);

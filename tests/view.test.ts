@@ -101,13 +101,18 @@ describe('tiling', () => {
   const params: FractalParams = { formula: 'mandelbrot', juliaRe: 0, juliaIm: 0, maxIter: 300, escapeRadius: 256 };
   const f: Frame = { cx: -0.745, cy: 0.11, scale: 0.0004, width: 97, height: 61 };
 
+  // The Burning Ship is mirrored (Im up), so look at the mirrored region for it.
+  const frameFor = (p: FractalParams): Frame => (p.formula === 'burningShip' ? { ...f, cy: -f.cy } : f);
+
   function full(p: FractalParams) {
+    const f = frameFor(p);
     const out = new Float32Array(f.width * f.height);
     renderTileFloat64(f, p, { x: 0, y: 0, w: f.width, h: f.height }, out);
     return out;
   }
 
   function tiled(p: FractalParams, tw: number, th: number) {
+    const f = frameFor(p);
     const out = new Float32Array(f.width * f.height);
     for (let y = 0; y < f.height; y += th) {
       for (let x = 0; x < f.width; x += tw) {

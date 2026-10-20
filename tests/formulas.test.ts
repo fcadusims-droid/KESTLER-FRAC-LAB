@@ -155,7 +155,28 @@ describe('Burning Ship', () => {
     const p: FractalParams = { ...mandel, formula: 'burningShip' };
     expect(escapeValue(p, 0, 0)).toBe(INTERIOR);
     expect(escapeValue(p, -1.75, 0)).toBe(INTERIOR);
-    expect(escapeValue(p, 1, 1)).toBeGreaterThan(0);
+    expect(escapeValue(p, 1, -1)).toBeGreaterThan(0);
+    // c = 1 + i here is c = 1 - i in the classic form, which has a fixed point z = 1 + i.
+    expect(escapeValue(p, 1, 1)).toBe(INTERIOR);
+  });
+
+  it('is the mirror image of the classic (|x| + i|y|)² + c form', () => {
+    const p: FractalParams = { ...mandel, formula: 'burningShip', maxIter: 300 };
+    const classic = (cx: number, cy: number) => {
+      let x = 0, y = 0;
+      for (let n = 0; n < 300; n++) {
+        if (x * x + y * y > 256 * 256) return n;
+        const ny = 2 * Math.abs(x * y) + cy;
+        x = x * x - y * y + cx;
+        y = ny;
+      }
+      return -1;
+    };
+    for (let i = 0; i < 400; i++) {
+      const re = -2 + (i % 20) * 0.13;
+      const im = -1.5 + Math.floor(i / 20) * 0.15;
+      expect(escapeValue(p, re, im) === INTERIOR).toBe(classic(re, -im) === -1);
+    }
   });
 
   it('differs from Mandelbrot where Im(z) changes sign', () => {

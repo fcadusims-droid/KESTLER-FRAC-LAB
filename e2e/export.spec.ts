@@ -51,7 +51,16 @@ test('export downloads a valid PNG when the File System Access API is unavailabl
   const d = await download;
   expect(d.suggestedFilename()).toBe('fractal-julia-257x129.png');
   await expect(page.getByTestId('export-done')).toContainText('257×129 PNG');
-  verifyPng(new Uint8Array(await readFile((await d.path())!)), 257, 129);
+  const pngPath = (await d.path())!;
+  verifyPng(new Uint8Array(await readFile(pngPath)), 257, 129);
+
+  // Re-opening the exported PNG restores its embedded project.
+  await page.getByLabel('Formula').selectOption('mandelbrot');
+  await page.getByText('Project & presets').click();
+  await page.getByTestId('project-file').setInputFiles({ name: 'render.png', mimeType: 'image/png', buffer: await readFile(pngPath) });
+  await expect(page.getByTestId('project-message')).toContainText('Loaded render.png');
+  await expect(page.getByLabel('Formula')).toHaveValue('julia');
+  await expect(page.getByLabel('c imag')).toHaveValue('0.6');
 });
 
 test('export streams to a file handle when showSaveFilePicker exists', async ({ page }) => {

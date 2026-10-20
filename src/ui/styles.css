@@ -382,3 +382,35 @@ input[type='color'] {
   margin: 0;
   font-size: 12px;
 }
+
+.preset-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.preset-list li {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.preset-list li span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preset-list button {
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+#preset-name {
+  flex: 1;
+  min-width: 0;
+}

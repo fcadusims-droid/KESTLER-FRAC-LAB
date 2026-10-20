@@ -39,8 +39,10 @@ export function escapeMandelbrotLike(
     const y2 = y * y;
     if (x2 + y2 > escape2) return smoothValue(n, x2 + y2);
     if (burning) {
+      // (|x| - i|y|)² + c: the classic Burning Ship mirrored across the real axis,
+      // so it appears upright with the imaginary axis pointing up.
       const xy = x * y;
-      y = 2 * (xy < 0 ? -xy : xy) + cy;
+      y = -2 * (xy < 0 ? -xy : xy) + cy;
     } else {
       y = 2 * x * y + cy;
     }

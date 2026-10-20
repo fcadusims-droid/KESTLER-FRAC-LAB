@@ -120,8 +120,29 @@ Verified:
 Not verified: the native save dialog + real `FileSystemWritableFileStream` (cannot be driven
 headless; the streaming code path was exercised with a mock writer). Firefox/Safari untested.
 
+## Milestone 6 — Projects & presets ✅
+Done:
+- Versioned project JSON `{ "version": 1, "app": "fractal-lab", formula, julia, view, iterations,
+  escapeRadius, palette, color, exportSize }` (`src/project/project.ts`); strict validation
+  (`src/project/validate.ts`): unknown fields/versions, wrong types, out-of-range values and
+  malformed colors are rejected with a path-specific message; only `JSON.parse`, never eval.
+- Save project (.json download) / Open project (.json, or a PNG exported with embedded tEXt).
+- localStorage: auto-saved last session (restored when the URL has no hash) and named user
+  presets (save/replace, load, delete). UI states it is per-browser, not cloud sync.
+- Julia presets (6 constants from the spec) in the formula panel.
+- Burning Ship: rendered as the mirror image of the classic `(|Re z| + i|Im z|)² + c`
+  (i.e. `(|Re z| − i|Im z|)² + c`) so the ship is upright with Im pointing up; stated in the UI.
+
+Verified:
+- Unit: 89 tests (adds storage round-trip/corrupt data/quota failure, PNG tEXt reader, Burning
+  Ship mirror equivalence with the classic form).
+- Playwright: 12 tests (adds project save → parse; malformed and unsupported-version files show
+  messages and leave state untouched; opening a project applies it; presets + autosave survive a
+  reload; re-opening an exported PNG restores its project).
+- Screenshots of Burning Ship inspected (upright after the change).
+
 ## Next
-Milestone 6 — project save/load UI, localStorage autosave + presets.
+Milestone 7 — hardening: performance measurements, UI polish/accessibility, README/DEPLOYMENT.
 
 ## Known issues
 - None yet.
